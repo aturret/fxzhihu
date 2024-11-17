@@ -9,6 +9,7 @@ export type Article = {
 		url: string;
 		headline: string;
 		avatar_url: string;
+        url_token: string;
 	};
 	created: number;
 	voteup_count: number;
@@ -100,7 +101,7 @@ const template = createTemplate`
 </html>
 `;
 
-export async function article(id: string, redirect: boolean, env: Env): Promise<string> {
+export async function article(id: string, redirect: boolean,json:boolean, env: Env): Promise<string> {
 	const url = new URL(id, `https://api.zhihu.com/article/`);
 	const response = await fetch(url);
 	if (!response.ok) {
@@ -108,6 +109,8 @@ export async function article(id: string, redirect: boolean, env: Env): Promise<
 	}
 	const data = await response.json<Article>();
 	const createdTime = new Date(data.created * 1000);
+
+    if (json) return JSON.stringify(data);
 
 	return template({
 		title: data.title,
@@ -122,7 +125,7 @@ export async function article(id: string, redirect: boolean, env: Env): Promise<
 		comment_count: data.comment_count.toString(),
 		column_title: data.column.title,
 		column_description: data.column.description,
-		redirect: redirect ? 'true' : 'false',
+		redirect: redirect ? 'true':'false',
 		author_url: data.author.url.replace("api.", ""),
 		headline: data.author.headline,
 		avatar_url: data.author.avatar_url,

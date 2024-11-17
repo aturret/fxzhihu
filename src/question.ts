@@ -7,7 +7,9 @@ export type Question = {
 	detail: string;
 	excerpt: string;
 	created: number;
+	updated_time: number;
 	answer_count: number;
+	follower_count: number;
 	author: {
 		name: string;
 	};
@@ -48,7 +50,7 @@ const template = createTemplate`
 </html>
 `;
 
-export async function question(id: string, redirect: boolean, env: Env): Promise<string> {
+export async function question(id: string, redirect: boolean,json:boolean, env: Env): Promise<string> {
 	const response = await fetch(`https://api.zhihu.com/questions/${id}?include=detail%2Cexcerpt%2Canswer_count%2Cauthor`, {
 		headers: {
 			cookie: `__zse_ck=${env.ZSE_CK}`,
@@ -59,8 +61,11 @@ export async function question(id: string, redirect: boolean, env: Env): Promise
 		throw new FetchError(response.statusText, response);
 	}
 
+	
 	const data = await response.json<Question>();
 	const createdTime = new Date(data.created * 1000);
+
+	if (json) return JSON.stringify(data);
 
 	return template({
 		title: data.title,

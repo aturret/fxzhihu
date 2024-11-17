@@ -15,13 +15,14 @@ import { answer } from './answer';
 import { article } from './article';
 import { question } from './question';
 
-const GITHUB_REPO = 'https://github.com/frostming/fxzhihu';
+const GITHUB_REPO = 'https://github.com/aturret/fxzhihu';
 
 export default {
 	async fetch(request, env, ctx): Promise<Response> {
 		const url = new URL(request.url);
 		const path = url.pathname;
-		let redirect = !['false', 'no'].includes(url.searchParams.get('redirect') || '');
+		let redirect = !['false', 'no'].includes(url.searchParams.get('redirect') || 'false');
+		let json = !['false', 'no'].includes(url.searchParams.get('json') || '');
 		// Redirect unless the request is coming from Telegram
 		const referer = request.headers.get('Referer') || '';
 		if (!referer.toLowerCase().includes('https://t.me')) {
@@ -45,9 +46,10 @@ Allow: /answer/*
 		if (match) {
 			const answerId = match[1];
 			try {
-				return new Response(await answer(answerId, redirect, env), {
+				return new Response(await answer(answerId, redirect, json, env), {
 					headers: {
-						'Content-Type': 'text/html',
+						'Content-Type': json ? 'application/json':  'text/html',
+						'Content-Encoding': 'gzip',
 					},
 				});
 			} catch (e: any) {
@@ -59,9 +61,10 @@ Allow: /answer/*
 		if (match) {
 			const articleId = match[1];
 			try {
-				return new Response(await article(articleId, redirect, env), {
+				return new Response(await article(articleId, redirect,json, env), {
 					headers: {
-						'Content-Type': 'text/html',
+						'Content-Type':  json ? 'application/json':  'text/html',
+						'Content-Encoding': 'gzip',
 					},
 				});
 			} catch (e: any) {
@@ -73,9 +76,10 @@ Allow: /answer/*
 		if (match) {
 			const questionId = match[1];
 			try {
-				return new Response(await question(questionId, redirect, env), {
+				return new Response(await question(questionId, redirect,json, env), {
 					headers: {
-						'Content-Type': 'text/html',
+						'Content-Type':  json ? 'application/json':  'text/html',
+						'Content-Encoding': 'gzip',
 					},
 				});
 			} catch (e: any) {

@@ -1,39 +1,40 @@
-import { Question } from "./question";
 import { fixImagesAndLinks, createTemplate, extractReference, FetchError } from "./lib";
 
-export type Answer = {
+export type Status = {
+	title: string;
 	content: string;
 	excerpt: string;
 	author: {
 		name: string;
 		url: string;
-        url_token: string;
 		headline: string;
 		avatar_url: string;
 	};
+	created: number;
 	voteup_count: number;
 	comment_count: number;
-	question: Question;
-	created_time: number;
-    updated_time: number;
-    ipInfo: string;
+	image_url: string;
+	column: {
+		title: string;
+		description: string;
+	};
 }
 
 const template = createTemplate`
 <!DOCTYPE html>
 <html lang="zh">
 <head>
-    <title>${"title"} - @${"author"} | FxZhihu</title>
+    <title>${"title"} | FxZhihu</title>
     <meta charset="UTF-8">
     <meta property="og:type" content="website">
-    <meta property="og:title" content="${"title"} - @${"author"} | FxZhihu">
+    <meta property="og:title" content="${"title"} | FxZhihu">
     <meta property="og:site_name" content="FxZhihu / Fixup Zhihu">
     <meta property="og:url" content="${"url"}">
-	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/yue.css@0.4.0/yue.css">
     <meta property="twitter:card" content="summary">
-    <meta name="twitter:title" property="og:title" itemprop="name" content="${"title"} - @${"author"} | FxZhihu">
+    <meta name="twitter:title" property="og:title" itemprop="name" content="${"title"} | FxZhihu">
     <meta name="twitter:description" property="og:description" itemprop="description" content="${"excerpt"}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no">
+	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/yue.css@0.4.0/yue.css">
     <script>
         const redirect = ${"redirect"};
         if (redirect) {
@@ -41,16 +42,19 @@ const template = createTemplate`
         }
     </script>
     <style>
-        img {
-            vertical-align: middle;
+        .origin_image {
+            width: 100%;
+        }
+        figure {
+            margin:1.4em 0;
         }
         figure img {
             width: 100%;
         }
-        figure {
-            margin: 1.4em 0;
+        img {
+            vertical-align: middle;
         }
-        .author {
+		.author {
             display: flex;
             gap: 1em;
         }
@@ -65,11 +69,13 @@ const template = createTemplate`
            display: block;
         }
     </style>
+    </style>
 </head>
 <body style="max-width: 1000px; margin: 0 auto; padding: 0 1em 0 1em;" class="yue">
     <header>
+		<img class="origin_image" src="${"image_url"}"/>
         <h1><a href="${"url"}">${"title"}</a></h1>
-        <div class="author">
+		<div class="author">
             <img class="avatar" id="avatar" src="${"avatar_url"}" />
             <div>
                 <h2 rel="author">
@@ -82,37 +88,32 @@ const template = createTemplate`
         <p rel="stats"style="color: #999; font-size: 0.9em;">${"voteup_count"} 👍 / ${"comment_count"} 💬</p>
     </header>
     <article>
-        ${"question"}
         ${"content"}
         ${"reference"}
+        <hr>
+        <div class="column" style="margin: 1em 0; padding: 0.5em 1em; border: 2px solid #999; border-radius: 5px;">
+            <h2>专栏：${"column_title"}</h2>
+            <p>${"column_description"}</p>
+        </div>
     </article>
 </body>
 </html>
 `;
 
-const questionTemplate = createTemplate`
-    <div style="margin: 0; padding: 0.5em 1em; border-left: 4px solid #999; font-size: 0.86em; background: #f9f9f9;">
-        <h2>问题描述</h2>
-        ${"question"}
-    </div>
-    <hr>
-`;
-
-export async function answer(id: string, redirect: boolean,json:boolean, env: Env): Promise<string> {
-	const url = `https://api.zhihu.com/v4/answers/${id}?include=content%2Cexcerpt%2Cauthor%2Cvoteup_count%2Ccomment_count%2Cquestion%2Ccreated_time%2Cquestion.detail`;
+export async function article(id: string, redirect: boolean, env: Env): Promise<string> {
+	const url = new URL(id, `https://api.zhihu.com/article/`);
 	const response = await fetch(url);
 	if (!response.ok) {
 		throw new FetchError(response.statusText, response);
 	}
-	const data = await response.json<Answer>();
-	const createdTime = new Date(data.created_time * 1000);
+	const data = await response.json<Article>();
+	const createdTime = new Date(data.created * 1000);
 
-    if (json) return JSON.stringify(data);
-
+    return JSON.stringify(data);
 
 	return template({
-		title: data.question.title,
-		url: new URL(`${data.question.id}/answer/${id}`, `https://www.zhihu.com/question/`).href,
+		title: data.title,
+		url: new URL(id, `https://zhuanlan.zhihu.com/p/`).href,
 		content: fixImagesAndLinks(data.content),
 		reference: extractReference(data.content),
 		excerpt: data.excerpt,
@@ -121,12 +122,12 @@ export async function answer(id: string, redirect: boolean,json:boolean, env: En
 		created_time_formatted: createdTime.toDateString(),
 		voteup_count: data.voteup_count.toString(),
 		comment_count: data.comment_count.toString(),
-		question: data.question.detail.trim().length > 0 ? questionTemplate({
-			question: fixImagesAndLinks(data.question.detail),
-		}) : '',
-		redirect: redirect ? 'true':'false',
+		column_title: data.column.title,
+		column_description: data.column.description,
+		redirect: redirect ? 'false' : 'true',
 		author_url: data.author.url.replace("api.", ""),
 		headline: data.author.headline,
 		avatar_url: data.author.avatar_url,
+		image_url: data.image_url,
 	});
 }
