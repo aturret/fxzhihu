@@ -180,13 +180,16 @@ const originPinTemplate = createTemplate`
 const videoContentTemplate = createTemplate`
 <video controls="controls" src="${'videoUrl'}">`;
 
-export async function status(id: string, redirect: boolean, env: Env): Promise<string> {
+export async function status(id: string, redirect: boolean, json: boolean, env: Env): Promise<string> {
 	const url = new URL(id, `https://www.zhihu.com/api/v4/pins/`);
 	const response = await fetch(url);
 	if (!response.ok) {
 		throw new FetchError(response.statusText, response);
 	}
 	const data = await response.json<Status>();
+
+    if (json) return JSON.stringify(data);
+
 	const createdTime = new Date(data.created * 1000);
 	const updatedTime = new Date(data.updated * 1000);
 	let originPinResult = '';

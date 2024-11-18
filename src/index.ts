@@ -77,7 +77,7 @@ Allow: /answer/*
 		if (match) {
 			const questionId = match[1];
 			try {
-				return new Response(await question(questionId, redirect,json, env), {
+				return new Response(await question(questionId, redirect, json, env), {
 					headers: {
 						'Content-Type':  json ? 'application/json':  'text/html',
 						'Content-Encoding': 'gzip',
@@ -92,9 +92,10 @@ Allow: /answer/*
 		if (match) {
 			const pinId = match[1];
 			try {
-				return new Response(await status(pinId, redirect, env), {
+				return new Response(await status(pinId, redirect, json, env), {
 					headers: {
-						'Content-Type': 'text/html',
+						'Content-Type':  json ? 'application/json':  'text/html',
+						'Content-Encoding': 'gzip',
 					},
 				});
 			} catch (e: any) {
