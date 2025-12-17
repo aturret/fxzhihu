@@ -41,19 +41,33 @@ export function createTemplate<
   };
 }
 
-export function extractReference(html: string): string {
-	const referenceRegex = /<sup[^>]*data-text="([^"]*)"[^>]*data-url="([^"]*)"[^>]*data-numero="([^"]*)"[^>]*>/g;
-	const references = new Map<string, { text: string; url: string }>();
+export async function extractReference(html: string) {
+  const references = new Map<string, { text: string; url: string }>();
+  const htmlResponse = new Response(html);
 
-	let match;
-	while ((match = referenceRegex.exec(html)) !== null) {
-		const [, text, url, numero] = match;
-		references.set(numero, { text, url });
-	}
+  // Create HTMLRewriter instance to collect references
+  const rewriter = new HTMLRewriter()
+    .on('sup', {
+      element(element) {
+        const text = element.getAttribute('data-text')
+        const url = element.getAttribute('data-url') || ''
+        const numero = element.getAttribute('data-numero')
 
-	let referenceList = Array.from(references.entries())
-		.sort(([a], [b]) => parseInt(a) - parseInt(b))
-		.map(([index, { text, url }]) => `${index}. ${text} <a href="${url}">${url}</a>`);
+        if (text && numero) {
+          references.set(numero, { text, url })
+        }
+      }
+    })
+
+  // Process the HTML to collect references
+  await rewriter.transform(htmlResponse).text()
+
+  // Generate reference list if any references were found
+  if (references.size > 0) {
+    const referenceList = Array.from(references.entries())
+      .sort(([a], [b]) => parseInt(a) - parseInt(b))
+      .map(([index, { text, url }]) => `<li>${text}${url ? `<a href="${url}">${url}</a>` : ''}</li>`)
+      .join('\n');
 
     return `<hr><section><h2>参考</h2><ol>${referenceList}</ol></section>`
   }

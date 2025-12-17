@@ -143,7 +143,7 @@ async function parseHTML(text: string, id: string) {
   return { articleData, excerpt };
 }
 
-export async function article(id: string, redirect: boolean, json:boolean, env: Env): Promise<string> {
+export async function article(id: string, redirect: boolean, env: Env,json:boolean): Promise<string> {
   const url = new URL(id, `https://www.zhihu.com/api/v4/articles/`).href;
   const response = await fetchWithCache(url, {
     "headers": {
