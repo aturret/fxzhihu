@@ -30,6 +30,8 @@ enabled = true
 API_URL = "https://fxzhihu.aturret.com"
 ARTICLE_URL = "https://fxzhihu.aturret.com"
 ENABLE_PROXY = "true"
+ZSE_CK = "004_/GfqbCSh=jGNZqrjsoyMaSV214s/jjE=5jXF3g64DAb/7ludVNwAeQGnTjGuJdPFqHKfXJPDLuczLKsDQwT8Dj/ZickJ9ph8LWJCa72p/aEjqhF25vfsCKW7bthH0gZM-CaVtKvH0OgJG2nwnrtKEeVZspFggsGwuMfJzZqnzSmXYgfqE49fTIIO3r0DKaGduXhJicBZIb8G2LJx5yY4pNtfUskj0V8pID5naCmZqSRsT3Hf10wzYbJL2v4l0wQ3BZv/ETL32LHzIoO/d33dEpXDPO9m9qwECv4ABywshunQ="
+Z_C0 = "2|1:0|10:1765961367|4:z_c0|92:Mi4xV0JjMEFBQUFBQUNtNWRNc0p6WFZHaVlBQUFCZ0FsVk5sN3d2YWdEcXJpQl9rdnNnZXNiNmdvZUM0RndQLUFnYVB3|68fe1ab9ff1cb5ab9fdcf29bbd49d42492cd3726b7d36ac687aec5bdb74ef69f"
 
 [env.development]
 vars = { API_URL = "http://localhost:8787", ARTICLE_URL = "http://localhost:8787" }
