@@ -1,134 +1,176 @@
-import { fixImagesAndLinks, createTemplate, extractReference, FetchError } from "./lib";
+import { createTemplate, extractReference, fetchWithCache, fixImagesAndLinks, KeysToCamelCase, stripHtmlTags } from "./lib";
 
-export type Article = {
-	title: string;
-	content: string;
-	excerpt: string;
-	author: {
-		name: string;
-		url: string;
-		headline: string;
-		avatar_url: string;
-        url_token: string;
-	};
-	created: number;
-	voteup_count: number;
-	comment_count: number;
-	image_url: string;
-	column: {
-		title: string;
-		description: string;
-	};
+type IArticle = {
+  title: string;
+  url: string;
+  url_token: string;
+  image_url: string;
+  excerpt: string;
+  content: string;
+  created: number;
+  updated: number;
+  author: {
+    name: string;
+    description: string;
+    url: string;
+    avatar_url: string;
+  };
+  column?: {
+    description: string;
+    intro: string;
+    title: string;
+  };
+  voteup_count: number;
+  comment_count: number;
+};
+
+type InitialData = {
+  initialState: {
+    entities: {
+      articles: {
+          [id: string]: KeysToCamelCase<IArticle>;
+      }
+    }
+  }
 }
 
 const template = createTemplate`
 <!DOCTYPE html>
 <html lang="zh">
 <head>
-    <title>${"title"} | FxZhihu</title>
-    <meta charset="UTF-8">
-    <meta property="og:type" content="website">
-    <meta property="og:title" content="${"title"} | FxZhihu">
-    <meta property="og:site_name" content="FxZhihu / Fixup Zhihu">
-    <meta property="og:url" content="${"url"}">
-    <meta property="twitter:card" content="summary">
-    <meta name="twitter:title" property="og:title" itemprop="name" content="${"title"} | FxZhihu">
-    <meta name="twitter:description" property="og:description" itemprop="description" content="${"excerpt"}">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no">
-	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/yue.css@0.4.0/yue.css">
-    <script>
-        const redirect = ${"redirect"};
-        if (redirect) {
-            window.location.replace("${"url"}");
-        }
-    </script>
-    <style>
-        .origin_image {
-            width: 100%;
-        }
-        figure {
-            margin:1.4em 0;
-        }
-        figure img {
-            width: 100%;
-        }
-        img {
-            vertical-align: middle;
-        }
+  <title>${"title"} | FxZhihu</title>
+  <meta charset="UTF-8">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="${"title"} | FxZhihu">
+  <meta property="og:site_name" content="FxZhihu / Fixup Zhihu">
+  <meta property="og:url" content="${"url"}">
+	<meta property="og:image" content="${"image_url"}">
+	<meta property="og:description" content="${"excerpt"}">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:site" content="FxZhihu" />
+	<meta name="twitter:creator" content="@${"author"}" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no">
+	<link rel="stylesheet" href="https://gcore.jsdelivr.net/npm/yue.css@0.4.0/yue.css">
+  <script>
+    const redirect = ${"redirect"};
+    if (redirect) {
+        window.location.replace("${"url"}");
+    }
+  </script>
+  <style>
+    .origin_image {
+      width: 100%;
+    }
+    figure {
+      margin:1.4em 0;
+    }
+    figure img {
+      width: 100%;
+    }
+    img {
+      vertical-align: middle;
+    }
 		.author {
-            display: flex;
-            gap: 1em;
-        }
-        #avatar {
-            width: 100px;
-            height: 100px;
-        }
-        .author > div {
-            flex: 1;
-        }
-        a[data-draft-type="link-card"] {
-           display: block;
-        }
-    </style>
-    </style>
+      display: flex;
+      gap: 1em;
+      align-items: center;
+    }
+    #avatar {
+      width: 100px;
+      height: 100px;
+    }
+    .author > div {
+      flex: 1;
+    }
+    a[data-draft-type="link-card"] {
+      display: block;
+    }
+    .references {
+      font-size: 0.85em;
+    }
+    .formula-display {
+      display: block;
+      text-align: center;
+    }
+  </style>
 </head>
 <body style="max-width: 1000px; margin: 0 auto; padding: 0 1em 0 1em;" class="yue">
-    <header>
+  <header>
 		<img class="origin_image" src="${"image_url"}"/>
-        <h1><a href="${"url"}">${"title"}</a></h1>
+    <h1><a href="${"url"}">${"title"}</a></h1>
 		<div class="author">
-            <img class="avatar" id="avatar" src="${"avatar_url"}" />
-            <div>
-                <h2 rel="author">
-                    <a href="${"author_url"}" target="_blank">@${"author"}</a>
-                </h2>
-                <p> ${"headline"} </p>
-            </div>
-        </div>
-        <time datetime="${"created_time"}">发表于 ${"created_time_formatted"}</time>
-        <p rel="stats"style="color: #999; font-size: 0.9em;">${"voteup_count"} 👍 / ${"comment_count"} 💬</p>
-    </header>
-    <article>
-        ${"content"}
-        ${"reference"}
-        <hr>
-        <div class="column" style="margin: 1em 0; padding: 0.5em 1em; border: 2px solid #999; border-radius: 5px;">
-            <h2>专栏：${"column_title"}</h2>
-            <p>${"column_description"}</p>
-        </div>
-    </article>
+      <img class="avatar" id="avatar" src="${"avatar_url"}" />
+      <div>
+        <h3 rel="author">
+          <a href="${"author_url"}" target="_blank">@${"author"}</a>
+        </h3>
+        <div>${"headline"}</div>
+      </div>
+    </div>
+    <time datetime="${"created_time"}">发表于 ${"created_time_formatted"}</time>
+    <p rel="stats"style="color: #999; font-size: 0.9em;">${"voteup_count"} 👍 / ${"comment_count"} 💬</p>
+  </header>
+  <article>
+    ${"content"}
+    ${"reference"}
+    <hr>
+    <div class="column" style="margin: 1em 0; padding: 0.5em 1em; border: 2px solid #999; border-radius: 5px;">
+      <h2>专栏：${"column_title"}</h2>
+      <p>${"column_description"}</p>
+    </div>
+  </article>
 </body>
 </html>
 `;
 
-export async function article(id: string, redirect: boolean,json:boolean, env: Env): Promise<string> {
-	const url = new URL(id, `https://api.zhihu.com/article/`);
-	const response = await fetch(url);
-	if (!response.ok) {
-		throw new FetchError(response.statusText, response);
-	}
-	const data = await response.json<Article>();
-	const createdTime = new Date(data.created * 1000);
+async function parseHTML(text: string, id: string) {
+  let excerpt = '';
+  let script = '';
+  const rewriter = new HTMLRewriter()
+    .on('meta[name="description"]', {
+      element(element) {
+        excerpt = element.getAttribute('content') || '';
+      }
+    })
+    .on('script#js-initialData', {
+      text(text) {
+        script += text.text;
+      }
+    })
 
-    if (json) return JSON.stringify(data);
+  await rewriter.transform(new Response(text)).text();
+  const articleData = (JSON.parse(script || '{}') as InitialData).initialState.entities.articles[id];
+  return { articleData, excerpt };
+}
 
-	return template({
-		title: data.title,
-		url: new URL(id, `https://zhuanlan.zhihu.com/p/`).href,
-		content: fixImagesAndLinks(data.content),
-		reference: extractReference(data.content),
-		excerpt: data.excerpt,
-		author: data.author.name,
-		created_time: createdTime.toISOString(),
-		created_time_formatted: createdTime.toDateString(),
-		voteup_count: data.voteup_count.toString(),
-		comment_count: data.comment_count.toString(),
-		column_title: data.column.title,
-		column_description: data.column.description,
-		redirect: redirect ? 'true':'false',
-		author_url: data.author.url.replace("api.", ""),
-		headline: data.author.headline,
-		avatar_url: data.author.avatar_url,
-		image_url: data.image_url,
-	});
+export async function article(id: string, redirect: boolean, json:boolean, env: Env): Promise<string> {
+  const url = new URL(id, `https://www.zhihu.com/api/v4/articles/`).href;
+  const response = await fetchWithCache(url, {
+    "headers": {
+      "user-agent": "node",
+      "cookie": `z_c0=${env.Z_C0}`,
+    },
+  });
+  const articleData = await response.json() as IArticle;
+  const createdTime = new Date(articleData.created * 1000);
+  if (json) return JSON.stringify(articleData);
+  return template({
+    title: articleData.title,
+    url: articleData.url,
+    content: await fixImagesAndLinks(articleData.content),
+    reference: await extractReference(articleData.content),
+    excerpt: stripHtmlTags(articleData.excerpt),
+    author: articleData.author.name,
+    created_time: createdTime.toISOString(),
+    created_time_formatted: createdTime.toLocaleString(),
+    voteup_count: articleData.voteup_count.toString(),
+    comment_count: articleData.comment_count.toString(),
+    column_title: articleData.column?.title ?? '',
+    column_description: articleData.column?.description ?? '',
+    redirect: redirect ? 'true' : 'false',
+    author_url: `https://www.zhihu.com${articleData.author.url}`,
+    headline: articleData.author.description,
+    avatar_url: articleData.author.avatar_url,
+    image_url: articleData.image_url,
+  });
 }

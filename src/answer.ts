@@ -1,22 +1,55 @@
 import { Question } from "./question";
-import { fixImagesAndLinks, createTemplate, extractReference, FetchError } from "./lib";
+import { fixImagesAndLinks, createTemplate, extractReference, fetchWithCache, KeysToCamelCase } from "./lib";
 
-export type Answer = {
-	content: string;
-	excerpt: string;
-	author: {
-		name: string;
-		url: string;
-        url_token: string;
-		headline: string;
-		avatar_url: string;
-	};
-	voteup_count: number;
-	comment_count: number;
-	question: Question;
-	created_time: number;
-    updated_time: number;
-    ipInfo: string;
+type IAnswer = {
+  content: string;
+  created_time: number;
+  updated_time: number;
+  ipInfo: string;
+  excerpt: string;
+  voteup_count: number;
+  comment_count: number;
+  url: string;
+  author: {
+    id: string;
+    name: string;
+    headline: string;
+    url: string;
+    url_token: string;
+    avatar_url: string;
+  };
+  question: {
+    id: string;
+    title: string;
+    detail: string;
+  };
+};
+
+type InitialData = {
+  initialState: {
+    entities: {
+      answers: {
+        [id: string]: KeysToCamelCase<IAnswer>;
+      };
+      questions: {
+        [id: string]: KeysToCamelCase<Question>;
+      };
+    };
+  };
+};
+
+async function parseHTML(text: string, id: string) {
+  let script = '';
+  const rewriter = new HTMLRewriter()
+    .on('script#js-initialData', {
+      text(text) {
+        script += text.text;
+      }
+    })
+
+  await rewriter.transform(new Response(text)).text();
+  const initialData = JSON.parse(script || '{}') as InitialData;
+  return { answer: initialData.initialState.entities.answers[id], question: initialData.initialState.entities.questions[initialData.initialState.entities.answers[id].question.id] };
 }
 
 const template = createTemplate`
@@ -28,11 +61,12 @@ const template = createTemplate`
     <meta property="og:type" content="website">
     <meta property="og:title" content="${"title"} - @${"author"} | FxZhihu">
     <meta property="og:site_name" content="FxZhihu / Fixup Zhihu">
+    <meta property="og:description" itemprop="description" content="${"excerpt"}">
     <meta property="og:url" content="${"url"}">
-	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/yue.css@0.4.0/yue.css">
-    <meta property="twitter:card" content="summary">
-    <meta name="twitter:title" property="og:title" itemprop="name" content="${"title"} - @${"author"} | FxZhihu">
-    <meta name="twitter:description" property="og:description" itemprop="description" content="${"excerpt"}">
+	<link rel="stylesheet" href="https://gcore.jsdelivr.net/npm/yue.css@0.4.0/yue.css">
+    <meta name="twitter:card" content="summary">
+	<meta name="twitter:site" content="FxZhihu" />
+	<meta name="twitter:creator" content="@${"author"}" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no">
     <script>
         const redirect = ${"redirect"};
@@ -53,6 +87,7 @@ const template = createTemplate`
         .author {
             display: flex;
             gap: 1em;
+            align-items: center;
         }
         #avatar {
             width: 100px;
@@ -62,7 +97,7 @@ const template = createTemplate`
             flex: 1;
         }
         a[data-draft-type="link-card"] {
-           display: block;
+            display: block;
         }
     </style>
 </head>
@@ -72,10 +107,10 @@ const template = createTemplate`
         <div class="author">
             <img class="avatar" id="avatar" src="${"avatar_url"}" />
             <div>
-                <h2 rel="author">
+                <h3 rel="author">
                     <a href="${"author_url"}" target="_blank">@${"author"}</a>
-                </h2>
-                <p> ${"headline"} </p>
+                </h3>
+                <div>${"headline"}</div>
             </div>
         </div>
         <time datetime="${"created_time"}">发表于 ${"created_time_formatted"}</time>
@@ -98,35 +133,37 @@ const questionTemplate = createTemplate`
     <hr>
 `;
 
-export async function answer(id: string, redirect: boolean,json:boolean, env: Env): Promise<string> {
-	const url = `https://api.zhihu.com/v4/answers/${id}?include=content%2Cexcerpt%2Cauthor%2Cvoteup_count%2Ccomment_count%2Cquestion%2Ccreated_time%2Cquestion.detail`;
-	const response = await fetch(url);
-	if (!response.ok) {
-		throw new FetchError(response.statusText, response);
-	}
-	const data = await response.json<Answer>();
-	const createdTime = new Date(data.created_time * 1000);
+export async function answer(id: string, redirect: boolean, env: Env, json:boolean, qid: string): Promise<string> {
+  const url = `https://www.zhihu.com/api/v4/answers/${id}?include=content,excerpt,voteup_count,comment_count,question.detail`;
+  const response = await fetchWithCache(url, {
+    headers: {
+      "user-agent": "node",
+      "cookie": `z_c0=${env.Z_C0}`,
+    },
+  });
+  const answerData = await response.json() as IAnswer;
+  const { question } = answerData;
+  const createdTime = new Date(answerData.created_time * 1000);
 
-    if (json) return JSON.stringify(data);
+  if (json) return JSON.stringify(answerData);
 
-
-	return template({
-		title: data.question.title,
-		url: new URL(`${data.question.id}/answer/${id}`, `https://www.zhihu.com/question/`).href,
-		content: fixImagesAndLinks(data.content),
-		reference: extractReference(data.content),
-		excerpt: data.excerpt,
-		author: data.author.name,
-		created_time: createdTime.toISOString(),
-		created_time_formatted: createdTime.toDateString(),
-		voteup_count: data.voteup_count.toString(),
-		comment_count: data.comment_count.toString(),
-		question: data.question.detail.trim().length > 0 ? questionTemplate({
-			question: fixImagesAndLinks(data.question.detail),
-		}) : '',
-		redirect: redirect ? 'true':'false',
-		author_url: data.author.url.replace("api.", ""),
-		headline: data.author.headline,
-		avatar_url: data.author.avatar_url,
-	});
+  return template({
+    title: answerData.question.title,
+    url: answerData.url,
+    content: await fixImagesAndLinks(answerData.content),
+    reference: await extractReference(answerData.content),
+    excerpt: answerData.excerpt,
+    author: answerData.author.name,
+    created_time: createdTime.toISOString(),
+    created_time_formatted: createdTime.toDateString(),
+    voteup_count: answerData.voteup_count.toString(),
+    comment_count: answerData.comment_count.toString(),
+    question: question.detail.trim().length > 0 ? questionTemplate({
+      question: await fixImagesAndLinks(question.detail),
+    }) : '',
+    redirect: redirect ? 'true' : 'false',
+    author_url: answerData.author.url.replace("/api/v4", ""),
+    headline: answerData.author.headline,
+    avatar_url: answerData.author.avatar_url,
+  });
 }
