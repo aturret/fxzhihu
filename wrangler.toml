@@ -27,8 +27,8 @@ enabled = true
 # [vars]
 # MY_VARIABLE = "production_value"
 [vars]
-API_URL = "https://www.fxzhihu.com"
-ARTICLE_URL = "https://zhuanlan.fxzhihu.com"
+API_URL = "https://fxzhihu.aturret.com"
+ARTICLE_URL = "https://fxzhihu.aturret.com"
 ENABLE_PROXY = "true"
 
 [env.development]
