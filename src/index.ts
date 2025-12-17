@@ -59,7 +59,7 @@ Allow: /answer/*
           try {
             let responseContent: string;
             if (qid !== undefined) {
-              responseContent = await pageFunction(id, redirect, env, qid, json);
+              responseContent = await answer(id, redirect, env, qid, json);
             } else {
               // @ts-expect-error
               responseContent = await pageFunction(id, redirect, env, json);

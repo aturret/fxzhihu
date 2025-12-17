@@ -183,7 +183,7 @@ const originPinTemplate = createTemplate`
 const videoContentTemplate = createTemplate`
 <video controls="controls" src="${'videoUrl'}">`;
 
-export async function status(id: string, redirect: boolean, env: Env): Promise<string> {
+export async function status(id: string, redirect: boolean, env: Env, json:boolean): Promise<string> {
   const url = new URL(id, `https://www.zhihu.com/api/v4/pins/`).href;
   const response = await fetchWithCache(url);
   const data = await response.json<Status>();
@@ -223,6 +223,7 @@ export async function status(id: string, redirect: boolean, env: Env): Promise<s
       videoUrl
     });
   }
+  if (json) return JSON.stringify(data);
 
   return template({
     title: data.author.name + '的想法',

@@ -133,7 +133,7 @@ const questionTemplate = createTemplate`
     <hr>
 `;
 
-export async function answer(id: string, redirect: boolean, env: Env, qid: string,  json:boolean): Promise<string> {
+export async function answer(id: string, redirect: boolean, env: Env, qid: string, json:boolean): Promise<string> {
   const url = `https://www.zhihu.com/api/v4/answers/${id}?include=content,excerpt,voteup_count,comment_count,question.detail`;
   const response = await fetchWithCache(url, {
     headers: {
