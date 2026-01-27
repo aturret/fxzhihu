@@ -121,6 +121,11 @@ const template = createTemplate`
         ${"content"}
         ${"reference"}
     </article>
+    <footer>
+        <p style="color: #999; font-size: 0.85em; text-align: center; margin-top: 2em;">
+            本页面由 <a href="https://github.com/frostming/fxzhihu" target="_blank">FxZhihu</a> 生成。<br>
+        </p>
+    </footer>
 </body>
 </html>
 `;
@@ -149,7 +154,7 @@ export async function answer(id: string, redirect: boolean, env: Env, qid: strin
 
   return template({
     title: answerData.question.title,
-    url: answerData.url,
+    url: answerData.url.replace("api/v4/", "").replace("answers", "answer"),
     content: await fixImagesAndLinks(answerData.content),
     reference: await extractReference(answerData.content),
     excerpt: answerData.excerpt,

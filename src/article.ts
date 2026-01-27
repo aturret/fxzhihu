@@ -119,6 +119,11 @@ const template = createTemplate`
       <p>${"column_description"}</p>
     </div>
   </article>
+  <footer>
+    <p style="color: #999; font-size: 0.85em; text-align: center; margin-top: 2em;">
+      本页面由 <a href="https://github.com/frostming/fxzhihu" target="_blank">FxZhihu</a> 生成。<br>
+    </p>
+  </footer>
 </body>
 </html>
 `;
@@ -156,7 +161,7 @@ export async function article(id: string, redirect: boolean, env: Env,json:boole
   if (json) return JSON.stringify(articleData);
   return template({
     title: articleData.title,
-    url: articleData.url,
+    url: articleData.url.replace("api", "zhuanlan").replace("articles", "p"),
     content: await fixImagesAndLinks(articleData.content),
     reference: await extractReference(articleData.content),
     excerpt: stripHtmlTags(articleData.excerpt),
@@ -168,7 +173,7 @@ export async function article(id: string, redirect: boolean, env: Env,json:boole
     column_title: articleData.column?.title ?? '',
     column_description: articleData.column?.description ?? '',
     redirect: redirect ? 'true' : 'false',
-    author_url: `https://www.zhihu.com${articleData.author.url}`,
+    author_url: articleData.author.url.replace("api", "www"),
     headline: articleData.author.description,
     avatar_url: articleData.author.avatar_url,
     image_url: articleData.image_url,
